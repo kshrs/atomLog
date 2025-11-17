@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"path/filepath"
 
 	"github.com/kshrs/atomLog/core"
 	"github.com/kshrs/atomLog/ansi_colors"
@@ -17,6 +18,7 @@ import (
 var currentDate string
 var fileName string
 var logs []core.Log
+var logsDir string
 
 func RefreshDate() {
 	if time.Now().Format("02-01-2006") == currentDate {
@@ -26,10 +28,17 @@ func RefreshDate() {
 }
 
 func main() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Panic(err)
+	}
+	logsDir = filepath.Join(home, "logs")
+	CreateLogsDir()
+
 	currentDate = time.Now().Format("02-01-2006")
 	RefreshDate()
 
-	fileName = currentDate + ".json"
+	fileName = filepath.Join(logsDir,currentDate + ".json")
 
 	fileLogs, err := ReadFile(fileName)
 	logs = fileLogs
@@ -39,12 +48,12 @@ func main() {
 
 	err = MainLoop()
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	
 
-	fmt.Println("Saved the logs to the log file")
-	WriteFile(fileName, logs)
+	// fmt.Println("Saved the logs to the log file")
+	// WriteFile(fileName, logs)
 
 }
 
@@ -59,6 +68,7 @@ func MainLoop() error {
 		}
 
 		code := ParseLog(strings.Trim(input, " \n"))
+	    WriteFile(fileName, logs)
 		if code == "exit" {
 			fmt.Println("Exiting...")
 			return nil
@@ -84,13 +94,15 @@ func ParseLog(input string) string {
 		log.Content = input
 		log.Time = time.Now()
 		logs = append(logs, log)
+		ClearPreviousLine(1)
+		PrettyPrintLog(logs[len(logs)-1])
 	}
 	return ""
 }
 
 func ReadFile(fileName string) ([]core.Log, error) {
 	var logs []core.Log
-	file, err := os.Open(fileName)
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDONLY, 0755)
 	if err != nil {
 		return nil, err
 	}
@@ -124,5 +136,25 @@ func PrintLogs(logs []core.Log) {
 		fmt.Println()
 		fmt.Println("Content: ", log.Content)
 		fmt.Println("Time: ", log.Time)
+	}
+}
+
+func PrettyPrintLog(log core.Log) {
+	fmt.Print(ansi_colors.Magenta, log.Time.Format("15:04:05"),"> ", ansi_colors.Reset)
+	fmt.Println(log.Content)
+}
+
+func ClearPreviousLine(count int) {
+	for _ = range count {
+		fmt.Printf("\r\033[F\033[2K")
+	}
+}
+
+func CreateLogsDir() {
+	if _, err := os.Stat(logsDir); os.IsNotExist(err) {
+		err := os.MkdirAll(logsDir, 0755)
+		if err != nil {
+			log.Panic(err)
+		}
 	}
 }
