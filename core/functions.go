@@ -134,11 +134,9 @@ func (state *AtomLogState) PrettyPrintLog(log Log) {
 		return colors.Red + match + colors.Reset
 	})
 	// # Flag
-	re = regexp.MustCompile(`#[A-Za-z0-9_]+`)
-	coloredContent = re.ReplaceAllStringFunc(coloredContent, func(match string) string {
-		return colors.Bold + colors.Green + match + colors.Reset
-	})
-
+	if strings.HasPrefix(coloredContent, "#") {
+	coloredContent = colors.Bold + colors.Green + coloredContent + colors.Reset
+	}
 	// - Flag
 	coloredContent = strings.ReplaceAll(coloredContent, "-", colors.Yellow + "-" + colors.Reset)
 
