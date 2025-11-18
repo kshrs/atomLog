@@ -2,13 +2,17 @@ package core
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
-	"time"
+	"regexp"
 	"strings"
-	"errors"
+	"time"
+
 	colors "github.com/kshrs/atomLog/ansi_colors"
 )
+
+var countOfLines int
 
 func (state *AtomLogState) MainLoop() error {
 	err := state.CreateLogsDir()
@@ -36,7 +40,7 @@ func (state *AtomLogState) MainLoop() error {
 
 		code := state.ParseLog(strings.Trim(input, " \n"))
 		if code == "exit" {
-			fmt.Println("Exiting...")
+			fmt.Println(colors.Red + "Exiting..." + colors.Reset)
 			return nil
 		}
 		err = state.WriteFile()
@@ -62,9 +66,21 @@ func (state *AtomLogState) ParseLog(input string) string {
 		state.ClearPreviousLine(1)
 		return "exit"
 
+	case "\\!", "\\imp", "\\important", "\\imps":
+		state.FindAndPrintImportant()
+
+	case "\\@", "\\mention", "\\mentions":
+		state.FindAndPrintMentions()
+
+	case "\\-", "\\li", "\\list", "\\lists":
+		state.FindAndPrintLists()
+	case "\\#", "\\head", "\\heads", "\\heading", "\\headings":
+		state.FindAndPrintHeadings()
+
 	case "":
 		state.ClearPreviousLine(1)
 		fmt.Println(colors.Magenta, time.Now().Format("15-04-05"), ">", colors.Reset)
+		countOfLines += 1
 
 	case "print":
 		state.ClearPreviousLine(1)
@@ -92,6 +108,7 @@ func (state *AtomLogState) PrintLogs(count int) {
 		fmt.Println()
 		fmt.Println("Content: ", log.Content)
 		fmt.Println("Time: ", log.Time)
+		countOfLines += 3
 	}
 }
 
@@ -103,5 +120,81 @@ func (state *AtomLogState) ClearPreviousLine(count int) {
 
 func (state *AtomLogState) PrettyPrintLog(log Log) {
 	fmt.Print(colors.Magenta, log.Time.Format("15:04:05"),"> ", colors.Reset)
-	fmt.Println(log.Content)
+	
+	var coloredContent string = log.Content
+
+	// @ Flag
+	re := regexp.MustCompile(`@[A-Za-z0-9_]+`)
+	coloredContent = re.ReplaceAllStringFunc(coloredContent, func(match string) string {
+		return colors.Cyan + match + colors.Reset
+	})
+	// ! Flag
+	re = regexp.MustCompile(`![A-Za-z0-9_]+`)
+	coloredContent = re.ReplaceAllStringFunc(coloredContent, func(match string) string {
+		return colors.Red + match + colors.Reset
+	})
+	// # Flag
+	re = regexp.MustCompile(`#[A-Za-z0-9_]+`)
+	coloredContent = re.ReplaceAllStringFunc(coloredContent, func(match string) string {
+		return colors.Bold + colors.Green + match + colors.Reset
+	})
+
+	// - Flag
+	coloredContent = strings.ReplaceAll(coloredContent, "-", colors.Yellow + "-" + colors.Reset)
+
+	// @date Flag
+	coloredContent = strings.ReplaceAll(strings.ToLower(coloredContent), "@date", colors.Yellow + time.Now().Format("02-01-2006") + colors.Reset)
+
+	// @time Flag
+	coloredContent = strings.ReplaceAll(strings.ToLower(coloredContent), "@time", colors.Yellow + time.Now().Format("15-04-05") + colors.Reset)
+
+	fmt.Println(coloredContent)
+	countOfLines += 1
+}
+
+func (state *AtomLogState) ClearScreen() {
+	state.ClearPreviousLine(countOfLines+1)
+}
+
+func (state *AtomLogState) FindAndPrintImportant() {
+	// ! Flag
+	re := regexp.MustCompile(`![A-Za-z0-9_]+`)
+	for _, log := range state.Logs {
+		matched := re.MatchString(log.Content)
+		if matched {
+			state.PrettyPrintLog(log)
+		}
+	}
+}
+
+func (state *AtomLogState) FindAndPrintMentions() {
+	// @ Flag
+	re := regexp.MustCompile(`@[A-Za-z0-9_]+`)
+	for _, log := range state.Logs {
+		matched := re.MatchString(log.Content)
+		if matched {
+			state.PrettyPrintLog(log)
+		}
+	}
+}
+
+func (state *AtomLogState) FindAndPrintLists() {
+	// - Flag
+	for _, log := range state.Logs {
+		matched := strings.Contains(log.Content, "-")
+		if matched {
+			state.PrettyPrintLog(log)
+		}
+	}
+}
+
+func (state *AtomLogState) FindAndPrintHeadings() {
+	// # Flag
+	re := regexp.MustCompile(`#[A-Za-z0-9_]+`)
+	for _, log := range state.Logs {
+		matched := re.MatchString(log.Content)
+		if matched {
+			state.PrettyPrintLog(log)
+		}
+	}
 }

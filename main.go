@@ -23,6 +23,9 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
+
+	// Clears the Terminal Partially
+	state.ClearScreen()
 }
 
 

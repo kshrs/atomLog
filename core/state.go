@@ -7,6 +7,7 @@ import (
 type Log struct {
 	Content string `json:"content"`
 	Time time.Time `json:"time"`
+	Flag string
 }
 
 type AtomLogState struct {
