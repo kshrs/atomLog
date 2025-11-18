@@ -1,4 +1,4 @@
-# atomLog
+# atomLog - Minimal CLI logger
 
 ![atomLog Screenshot](screenshots/app.png)
 
